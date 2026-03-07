@@ -6,6 +6,9 @@ namespace Agullto_IMS
 {
     internal class Program
     {
+        
+        static List<Product> products = new List<Product>();
+
         static void Main(string[] args)
         {
             while (true)
@@ -18,6 +21,7 @@ namespace Agullto_IMS
                 if (!int.TryParse(Console.ReadLine(), out int choice))
                 {
                     Console.WriteLine("Invalid input. Enter a number between 1 and 5.");
+                    Console.ReadLine();
                     continue;
                 }
 
@@ -60,6 +64,7 @@ namespace Agullto_IMS
 
             Console.Write("Enter product stock: ");
             int productStock;
+
             while (!int.TryParse(Console.ReadLine(), out productStock))
             {
                 Console.Write("Invalid input. Enter a number for stock: ");
@@ -76,7 +81,7 @@ namespace Agullto_IMS
 
         static void Read()
         {
-            Console.WriteLine("Reading products...");
+            Console.WriteLine("\n--- Product List ---");
 
             if (products.Count == 0)
             {
@@ -84,9 +89,11 @@ namespace Agullto_IMS
             }
             else
             {
+                int index = 1;
                 foreach (var product in products)
                 {
-                    Console.WriteLine($"Name: {product.Name}, Stock: {product.Stock}");
+                    Console.WriteLine($"{index}. Name: {product.Name}, Stock: {product.Stock}");
+                    index++;
                 }
             }
         }
@@ -103,6 +110,7 @@ namespace Agullto_IMS
             {
                 Console.Write("Enter new stock: ");
                 int newStock;
+
                 while (!int.TryParse(Console.ReadLine(), out newStock))
                 {
                     Console.Write("Invalid input. Enter a number for stock: ");
@@ -143,4 +151,3 @@ namespace Agullto_IMS
         public int Stock { get; set; }
     }
 }
-

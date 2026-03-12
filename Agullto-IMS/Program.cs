@@ -1,16 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using Agullto_IMS.Services;
+using Agullto_IMS.Data;
 
 namespace Agullto_IMS
 {
-    internal class Program
+    class Program
     {
-        
-        static List<Product> products = new List<Product>();
-
         static void Main(string[] args)
         {
+            InventoryData data = new InventoryData();
+            ProductService service = new ProductService(data);
+
             while (true)
             {
                 Console.Clear();
@@ -20,7 +20,7 @@ namespace Agullto_IMS
 
                 if (!int.TryParse(Console.ReadLine(), out int choice))
                 {
-                    Console.WriteLine("Invalid input. Enter a number between 1 and 5.");
+                    Console.WriteLine("Invalid input.");
                     Console.ReadLine();
                     continue;
                 }
@@ -28,23 +28,67 @@ namespace Agullto_IMS
                 switch (choice)
                 {
                     case 1:
-                        Create();
+                        Console.Write("Enter product name: ");
+                        string name = Console.ReadLine() ?? "";
+
+                        Console.Write("Enter stock: ");
+                        int stock;
+                        while (!int.TryParse(Console.ReadLine(), out stock))
+                        {
+                            Console.Write("Enter a valid number: ");
+                        }
+
+                        service.AddProduct(name, stock);
+                        Console.WriteLine("Product added!");
                         break;
 
                     case 2:
-                        Read();
+                        var products = service.GetProducts();
+
+                        if (products.Count == 0)
+                        {
+                            Console.WriteLine("No products available.");
+                        }
+                        else
+                        {
+                            int i = 1;
+                            foreach (var p in products)
+                            {
+                                Console.WriteLine($"{i}. {p.Name} - {p.Stock}");
+                                i++;
+                            }
+                        }
                         break;
 
                     case 3:
-                        Update();
+                        Console.Write("Enter product name to update: ");
+                        string updateName = Console.ReadLine() ?? "";
+
+                        Console.Write("Enter new stock: ");
+                        int newStock;
+
+                        while (!int.TryParse(Console.ReadLine(), out newStock))
+                        {
+                            Console.Write("Enter a valid number: ");
+                        }
+
+                        if (service.UpdateProduct(updateName, newStock))
+                            Console.WriteLine("Product updated!");
+                        else
+                            Console.WriteLine("Product not found.");
                         break;
 
                     case 4:
-                        Delete();
+                        Console.Write("Enter product name to delete: ");
+                        string deleteName = Console.ReadLine() ?? "";
+
+                        if (service.DeleteProduct(deleteName))
+                            Console.WriteLine("Product deleted!");
+                        else
+                            Console.WriteLine("Product not found.");
                         break;
 
                     case 5:
-                        Console.WriteLine("Exiting the system. Goodbye!");
                         return;
 
                     default:
@@ -56,98 +100,5 @@ namespace Agullto_IMS
                 Console.ReadLine();
             }
         }
-
-        static void Create()
-        {
-            Console.Write("Enter product name: ");
-            string productName = Console.ReadLine();
-
-            Console.Write("Enter product stock: ");
-            int productStock;
-
-            while (!int.TryParse(Console.ReadLine(), out productStock))
-            {
-                Console.Write("Invalid input. Enter a number for stock: ");
-            }
-
-            products.Add(new Product
-            {
-                Name = productName,
-                Stock = productStock
-            });
-
-            Console.WriteLine("Product added successfully!");
-        }
-
-        static void Read()
-        {
-            Console.WriteLine("\n--- Product List ---");
-
-            if (products.Count == 0)
-            {
-                Console.WriteLine("No products available.");
-            }
-            else
-            {
-                int index = 1;
-                foreach (var product in products)
-                {
-                    Console.WriteLine($"{index}. Name: {product.Name}, Stock: {product.Stock}");
-                    index++;
-                }
-            }
-        }
-
-        static void Update()
-        {
-            Console.Write("Enter product name to update: ");
-            string updateProduct = Console.ReadLine();
-
-            var foundProduct = products
-                .FirstOrDefault(p => p.Name.Equals(updateProduct, StringComparison.OrdinalIgnoreCase));
-
-            if (foundProduct != null)
-            {
-                Console.Write("Enter new stock: ");
-                int newStock;
-
-                while (!int.TryParse(Console.ReadLine(), out newStock))
-                {
-                    Console.Write("Invalid input. Enter a number for stock: ");
-                }
-
-                foundProduct.Stock = newStock;
-                Console.WriteLine("Product updated successfully!");
-            }
-            else
-            {
-                Console.WriteLine("Product not found.");
-            }
-        }
-
-        static void Delete()
-        {
-            Console.Write("Enter product name to delete: ");
-            string deleteProduct = Console.ReadLine();
-
-            var productToDelete = products
-                .FirstOrDefault(p => p.Name.Equals(deleteProduct, StringComparison.OrdinalIgnoreCase));
-
-            if (productToDelete != null)
-            {
-                products.Remove(productToDelete);
-                Console.WriteLine("Product deleted successfully!");
-            }
-            else
-            {
-                Console.WriteLine("Product not found.");
-            }
-        }
-    }
-
-    class Product
-    {
-        public string Name { get; set; }
-        public int Stock { get; set; }
     }
 }

@@ -13,6 +13,7 @@ namespace Agullto_IMS
 
             while (true)
             {
+                
                 Console.Clear();
                 Console.WriteLine("===== Basic Inventory Management System =====");
                 Console.WriteLine("(1. Create) (2. Read) (3. Update) (4. Delete) (5. Exit)");

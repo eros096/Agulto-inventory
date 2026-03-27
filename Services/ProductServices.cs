@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using Agullto_IMS.Models;
 using Agullto_IMS.Data;
 
@@ -8,49 +8,60 @@ namespace Agullto_IMS.Services
 {
     public class ProductService
     {
-        private InventoryData data;
+        private readonly InventoryData _data;
+        private readonly InventoryDBData _dbData;
 
         public ProductService(InventoryData data)
         {
-            this.data = data;
+            _data = data ?? throw new ArgumentNullException(nameof(data));
+            _dbData = new InventoryDBData(); 
         }
 
-        public void AddProduct(string name, int stock)
+        
+        public Product AddProduct(string name, int stock, decimal price)
         {
-            data.Products.Add(new Product
+            var product = new Product
             {
+                Id = Guid.NewGuid(),
                 Name = name,
-                Stock = stock
-            });
+                Stock = stock,
+                Price = price
+            };
+
+            _data.Products.Add(product);       
+            _dbData.AddProduct(product);       
+
+            return product;
         }
 
+        
         public List<Product> GetProducts()
         {
-            return data.Products;
+            return _data.Products;
         }
 
-        public bool UpdateProduct(string name, int newStock)
+        public bool UpdateProduct(Guid id, string newName, int newStock, decimal newPrice)
         {
-            var product = data.Products
-                .FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
+            var product = _data.Products.FirstOrDefault(p => p.Id == id);
             if (product == null)
                 return false;
 
+            product.Name = newName;
             product.Stock = newStock;
-            return true;
+            product.Price = newPrice;
+
+            return _dbData.UpdateProduct(product);
         }
 
-        public bool DeleteProduct(string name)
+        
+        public bool DeleteProduct(Guid id)
         {
-            var product = data.Products
-                .FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
+            var product = _data.Products.FirstOrDefault(p => p.Id == id);
             if (product == null)
                 return false;
 
-            data.Products.Remove(product);
-            return true;
+            _data.Products.Remove(product);
+            return _dbData.DeleteProduct(id);
         }
     }
 }

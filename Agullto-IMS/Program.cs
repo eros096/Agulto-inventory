@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Globalization;
+using System.Collections.Generic;
+using Agullto_IMS.Models;
 using Agullto_IMS.Services;
 using Agullto_IMS.Data;
-using Agullto_IMS.Models;
+
 
 
 namespace Agullto_IMS
@@ -14,6 +17,8 @@ namespace Agullto_IMS
     {
         static void Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
             InventoryData inventory = new InventoryData();
             JsonInventory jsonInventory = new JsonInventory(inventory); 
             ProductService service = new ProductService(inventory);
@@ -46,18 +51,26 @@ namespace Agullto_IMS
                         Console.WriteLine("Product added!");
                         break;
 
-                    case 2: 
+                    case 2:
+                        
+
                         var products = service.GetProducts();
+
                         if (products.Count == 0)
                         {
                             Console.WriteLine("No products available.");
                         }
                         else
                         {
+                            
+                            Console.WriteLine("No | ID                                   | Name       | Stock | Price");
+                            Console.WriteLine("---|--------------------------------------|------------|-------|------------");
+
                             int i = 1;
                             foreach (var p in products)
                             {
-                                Console.WriteLine($"{i}. ID: {p.Id} | {p.Name} - {p.Stock} pcs - {p.Price:C}");
+                                
+                                Console.WriteLine($"{i,-2} | {p.Id} | {p.Name,-10} | {p.Stock,5} | {p.Price.ToString("C", CultureInfo.GetCultureInfo("en-PH")),10}");
                                 i++;
                             }
                         }

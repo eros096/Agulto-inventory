@@ -28,8 +28,8 @@ namespace Agullto_IMS.Services
                 Price = price
             };
 
-            _data.Products.Add(product);       
-            _dbData.AddProduct(product);       
+            _data.Products.Add(product);
+            _dbData.AddProduct(product);
 
             return product;
         }

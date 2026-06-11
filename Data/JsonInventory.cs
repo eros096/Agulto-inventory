@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using System.Text.Json;
 using Agullto_IMS.Models;
 
@@ -16,24 +17,53 @@ namespace Agullto_IMS.Data
             _inventoryData = inventoryData ?? throw new ArgumentNullException(nameof(inventoryData));
             _jsonFileName = $"{AppDomain.CurrentDomain.BaseDirectory}/Products.json";
 
-            PopulateJsonFile();
+            RetrieveDataFromJsonFile();
         }
 
-        public void PopulateJsonFile()
+        public List<Product> GetAll()
         {
-            RetrieveDataFromJsonFile();
+            return _inventoryData.Products;
+        }
 
-            if (_inventoryData.Products.Count == 0)
-            {
-                _inventoryData.Products.AddRange(new[]
-                {
-                    new Product { Id = Guid.NewGuid(), Name = "Laptop", Stock = 10, Price = 45000 },
-                    new Product { Id = Guid.NewGuid(), Name = "Mouse", Stock = 50, Price = 500 },
-                    new Product { Id = Guid.NewGuid(), Name = "Keyboard", Stock = 30, Price = 1500 }
-                });
+        public void Add(Product product)
+        {
+            if (product.Id == Guid.Empty)
+                product.Id = Guid.NewGuid();
 
-                SaveDataToJsonFile();
-            }
+            _inventoryData.Products.Add(product);
+            SaveDataToJsonFile();
+        }
+
+        public bool Update(Product updatedProduct)
+        {
+            var existingProduct = _inventoryData.Products.FirstOrDefault(p => p.Id == updatedProduct.Id);
+            if (existingProduct == null)
+                return false;
+
+            // Mapping all advanced features to the JSON storage state
+            existingProduct.Name = updatedProduct.Name;
+            existingProduct.Stock = updatedProduct.Stock;
+            existingProduct.Department = updatedProduct.Department;
+            existingProduct.WeightValue = updatedProduct.WeightValue;
+            existingProduct.Unit = updatedProduct.Unit;
+            existingProduct.CostPrice = updatedProduct.CostPrice;
+            existingProduct.SellingPrice = updatedProduct.SellingPrice;
+            existingProduct.Location = updatedProduct.Location;
+            existingProduct.ExpirationDate = updatedProduct.ExpirationDate;
+
+            SaveDataToJsonFile();
+            return true;
+        }
+
+        public bool Delete(Guid id)
+        {
+            var product = _inventoryData.Products.FirstOrDefault(p => p.Id == id);
+            if (product == null)
+                return false;
+
+            _inventoryData.Products.Remove(product);
+            SaveDataToJsonFile();
+            return true;
         }
 
         public void RetrieveDataFromJsonFile()
@@ -50,25 +80,6 @@ namespace Agullto_IMS.Data
 
             _inventoryData.Products.Clear();
             _inventoryData.Products.AddRange(productsFromFile);
-        }
-
-        public void AddProduct(Product product)
-        {
-            if (product.Id == Guid.Empty)
-                product.Id = Guid.NewGuid();
-
-            _inventoryData.Products.Add(product);
-            SaveDataToJsonFile();
-        }
-
-        public void RemoveProduct(Guid id)
-        {
-            var product = _inventoryData.Products.FirstOrDefault(p => p.Id == id);
-            if (product != null)
-            {
-                _inventoryData.Products.Remove(product);
-                SaveDataToJsonFile();
-            }
         }
 
         public void SaveDataToJsonFile()

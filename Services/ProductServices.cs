@@ -1,67 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Agullto_IMS.Models;
 using Agullto_IMS.Data;
+using Agullto_IMS.Models; // Cleaned up the duplicated/corrupted using statement
 
 namespace Agullto_IMS.Services
 {
     public class ProductService
     {
-        private readonly InventoryData _data;
-        private readonly InventoryDBData _dbData;
+        private readonly InventoryDBData _sqlStorage;
+        private readonly JsonInventory _jsonStorage;
 
         public ProductService(InventoryData data)
         {
-            _data = data ?? throw new ArgumentNullException(nameof(data));
-            _dbData = new InventoryDBData(); 
+            // Null guard for the incoming data configuration
+            if (data == null) throw new ArgumentNullException(nameof(data));
+
+            _sqlStorage = new InventoryDBData();
+            _jsonStorage = new JsonInventory(data);
         }
 
-        
-        public Product AddProduct(string name, int stock, decimal price)
+        public void AddProduct(Product product)
         {
-            var product = new Product
-            {
-                Id = Guid.NewGuid(),
-                Name = name,
-                Stock = stock,
-                Price = price
-            };
+            if (product == null) throw new ArgumentNullException(nameof(product));
 
-            _data.Products.Add(product);
-            _dbData.AddProduct(product);
-
-            return product;
+            _sqlStorage.AddProduct(product); // Write to SQLEXPRESS
+            _jsonStorage.Add(product);       // Write to Products.json
         }
 
-        
-        public List<Product> GetProducts()
+        public List<Product> GetAllProducts()
         {
-            return _data.Products;
+            return _sqlStorage.GetProducts() ?? new List<Product>();
         }
 
-        public bool UpdateProduct(Guid id, string newName, int newStock, decimal newPrice)
+        public Product? FindProduct(Guid id)
         {
-            var product = _data.Products.FirstOrDefault(p => p.Id == id);
-            if (product == null)
-                return false;
-
-            product.Name = newName;
-            product.Stock = newStock;
-            product.Price = newPrice;
-
-            return _dbData.UpdateProduct(product);
+            return _sqlStorage.GetProducts().FirstOrDefault(p => p.Id == id);
         }
 
-        
+        public bool UpdateProduct(Product product)
+        {
+            if (product == null) return false;
+
+            bool sqlUpdated = _sqlStorage.UpdateProduct(product);
+            bool jsonUpdated = _jsonStorage.Update(product);
+
+            return sqlUpdated && jsonUpdated;
+        }
+
         public bool DeleteProduct(Guid id)
         {
-            var product = _data.Products.FirstOrDefault(p => p.Id == id);
-            if (product == null)
-                return false;
+            bool sqlDeleted = _sqlStorage.DeleteProduct(id);
+            bool jsonDeleted = _jsonStorage.Delete(id);
 
-            _data.Products.Remove(product);
-            return _dbData.DeleteProduct(id);
+            return sqlDeleted && jsonDeleted;
+        }
+
+        public List<Product> GetLowStockItems()
+        {
+            return _sqlStorage.GetProducts()
+                .Where(p => p.Stock < 5)
+                .ToList();
         }
     }
 }

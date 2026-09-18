@@ -25,10 +25,19 @@ namespace Agullto_IMS.Services
             ));
             message.To.Add(new MailboxAddress("Inventory Admin", recipientEmail));
 
-            message.Subject = $"Product Added: {product.Name}";
+            message.Subject = $"NEW PRODUCT ADDED: {product.Name}";
             message.Body = new TextPart("plain")
             {
-                Text = $"Product {product.Name} has been added successfully."
+                Text = $"A new product has been successfully added to Agullto IMS.\n\n" +
+                       $"Product Details:\n" +
+                       $" - Item Name: {product.Name}\n" +
+                       $" - Stock Level: {product.Stock} {product.Unit}\n" +
+                       $" - Weight Value: {product.WeightValue}\n" +
+                       $" - Wholesale Cost: {product.CostPrice:C}\n" +
+                       $" - Retail Price: {product.SellingPrice:C}\n" +
+                       $" - Department: {product.Department}\n" +
+                       $" - Location: {product.Location}\n\n" +
+                       $"Timestamp: {DateTime.Now:f}"
             };
 
             using (var client = new SmtpClient())

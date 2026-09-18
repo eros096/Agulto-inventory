@@ -8,7 +8,7 @@ namespace Agullto_IMS.Data
     public class InventoryDBData
     {
         private readonly string _connectionString =
-            "Data Source=localhost\\SQLEXPRESS;Initial Catalog=InventoryManagementSystem;Integrated Security=True;TrustServerCertificate=True;";
+            "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=InventoryManagementSystem;Integrated Security=True;TrustServerCertificate=True;";
 
         public List<Product> GetProducts()
         {

@@ -4,19 +4,28 @@ using System.Collections.Generic;
 using Agullto_IMS.Models;
 using Agullto_IMS.Data;
 using Agullto_IMS.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace Agullto_IMS
 {
     class Program
     {
-        static ProductService productService = new ProductService(new InventoryData());
+        // Service and Configuration Initializations
+        static IConfiguration configuration = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .Build();
 
-        // Mock Account Service for demonstration context
+        static ProductService productService = new ProductService(new InventoryData());
+        static EmailService emailService = new EmailService(configuration);
+        static string adminEmail = "admin@example.com"; // Replace with your target email address
+
         static List<UserAccount> mockAccounts = new List<UserAccount>
         {
             new UserAccount { Username = "admin", Password = "123", Role = "Admin" },
             new UserAccount { Username = "emp", Password = "123", Role = "Employee" }
         };
+
         static List<AccessLog> accessLogs = new List<AccessLog>();
 
         static void Main(string[] args)
@@ -28,7 +37,7 @@ namespace Agullto_IMS
                 Console.Clear();
                 Console.WriteLine("===== AGULLTO IMS & GROCERY SYSTEM INTEGRATION =====");
                 Console.Write("Do you want to login? [Y]|[N]: ");
-                string entry = Console.ReadLine()?.ToUpper() ?? "";
+                string entry = Console.ReadLine()?.Trim().ToUpper() ?? "";
 
                 if (entry == "N")
                 {
@@ -45,22 +54,21 @@ namespace Agullto_IMS
         static void ExecuteLoginSession()
         {
             Console.Write("Enter username: ");
-            string username = Console.ReadLine() ?? "";
+            string username = Console.ReadLine()?.Trim() ?? "";
             Console.Write("Enter password: ");
-            string password = Console.ReadLine() ?? "";
+            string password = Console.ReadLine()?.Trim() ?? "";
 
-            // Simple Authentication Check
             var account = mockAccounts.Find(a => a.Username == username && a.Password == password);
 
             if (account == null)
             {
                 Console.WriteLine("Invalid Credentials! Returning to main menu.");
-                accessLogs.Add(new AccessLog { Username = username, Role = "None", Status = false });
+                accessLogs.Add(new AccessLog { Username = username, Role = "None", Status = false, Timestamp = DateTime.Now });
                 Console.ReadLine();
                 return;
             }
 
-            accessLogs.Add(new AccessLog { Username = username, Role = account.Role, Status = true });
+            accessLogs.Add(new AccessLog { Username = username, Role = account.Role, Status = true, Timestamp = DateTime.Now });
             Console.WriteLine($"\nWelcome {account.Username} ({account.Role})!");
             Console.WriteLine("Press Enter to access menus...");
             Console.ReadLine();
@@ -127,26 +135,42 @@ namespace Agullto_IMS
             }
         }
 
-        // --- Core CRUD Presentation Layout Logic ---
+        // --- Core CRUD Flow Logic ---
 
         static void AddGroceryProductFlow()
         {
             Console.Clear();
             Console.WriteLine(">>> Add New Record <<<");
+
             Console.Write("Item Name: ");
-            string name = Console.ReadLine() ?? "";
+            string name = Console.ReadLine()?.Trim() ?? "Unnamed Product";
 
-            Console.Write("Stock Level: ");
-            int stock = int.Parse(Console.ReadLine() ?? "0");
+            int stock = ReadIntInput("Stock Level: ");
+            decimal cost = ReadDecimalInput("Cost Price (Wholesale value): ");
+            decimal selling = ReadDecimalInput("Selling Retail Price (Consumer value): ");
 
-            Console.Write("Cost Price (Wholesale value): ");
-            decimal cost = decimal.Parse(Console.ReadLine() ?? "0");
+            // Weight Input Prompt
+            double weight = ReadDoubleInput("Weight/Quantity Value (e.g. 1.5, 500): ");
 
-            Console.Write("Selling Retail Price (Consumer value): ");
-            decimal selling = decimal.Parse(Console.ReadLine() ?? "0");
+            // Measurement Unit Selection
+            Console.WriteLine("\nSelect Measurement Unit:");
+            Console.WriteLine("[0] Pcs | [1] Kg | [2] Grams | [3] Liter | [4] Ml");
+            int unitChoice = ReadIntInput("Unit Choice: ");
+            MeasurementUnit unit = Enum.IsDefined(typeof(MeasurementUnit), unitChoice)
+                ? (MeasurementUnit)unitChoice
+                : MeasurementUnit.Pcs;
 
-            Console.Write("Location Layout/Aisle coordinate: ");
-            string shelf = Console.ReadLine() ?? "Aisle 1";
+            // Department Selection
+            Console.WriteLine("\nSelect Department:");
+            Console.WriteLine("[0] Pantry | [1] Dairy | [2] Produce | [3] Bakery | [4] Beverages");
+            int deptChoice = ReadIntInput("Department Choice: ");
+            ProductDepartment dept = Enum.IsDefined(typeof(ProductDepartment), deptChoice)
+                ? (ProductDepartment)deptChoice
+                : ProductDepartment.Pantry;
+
+            Console.Write("\nLocation Layout/Aisle coordinate: ");
+            string shelf = Console.ReadLine()?.Trim();
+            if (string.IsNullOrWhiteSpace(shelf)) shelf = "Aisle 1";
 
             Product newProd = new Product
             {
@@ -154,13 +178,29 @@ namespace Agullto_IMS
                 Stock = stock,
                 CostPrice = cost,
                 SellingPrice = selling,
-                Location = shelf,
-                Department = ProductDepartment.Pantry, // Enums can be evaluated dynamically
-                Unit = MeasurementUnit.Pcs
+                WeightValue = weight,
+                Unit = unit,
+                Department = dept,
+                Location = shelf
             };
 
+            // 1. Save product
             productService.AddProduct(newProd);
-            Console.WriteLine("\nRecord committed and exported to SQL Server table + Products.json successfully.");
+            Console.WriteLine("\nRecord committed successfully.");
+
+            // 2. Dispatch minimal email confirmation
+            try
+            {
+                Console.WriteLine("Sending email notification...");
+                emailService.SendEmail(newProd, adminEmail);
+                Console.WriteLine("Email notification sent successfully!");
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"[Warning] Product saved, but email failed: {ex.Message}");
+                Console.ResetColor();
+            }
         }
 
         static void DisplayAllInventoryFlow()
@@ -169,7 +209,7 @@ namespace Agullto_IMS
             var systemList = productService.GetAllProducts();
 
             Console.WriteLine("=== Current Balanced Multi-Storage Ledger ===");
-            if (systemList.Count == 0)
+            if (systemList == null || systemList.Count == 0)
             {
                 Console.WriteLine("No available metrics saved.");
                 return;
@@ -177,7 +217,7 @@ namespace Agullto_IMS
 
             foreach (var item in systemList)
             {
-                Console.WriteLine($"ID: {item.Id}\n - Name: {item.Name} | Stock: {item.Stock} | Location: {item.Location}\n - Cost: {item.CostPrice:C} | Retail Sale: {item.SellingPrice:C}\n");
+                Console.WriteLine($"ID: {item.Id}\n - Name: {item.Name} | Stock: {item.Stock} {item.Unit} | Location: {item.Location}\n - Weight: {item.WeightValue} | Cost: {item.CostPrice:C} | Retail Sale: {item.SellingPrice:C}\n");
             }
         }
 
@@ -193,6 +233,10 @@ namespace Agullto_IMS
                 }
                 else Console.WriteLine("No records tracking that identifier configuration found.");
             }
+            else
+            {
+                Console.WriteLine("Invalid GUID format.");
+            }
         }
 
         static void UpdateProductFlow()
@@ -202,16 +246,29 @@ namespace Agullto_IMS
             if (Guid.TryParse(Console.ReadLine(), out Guid parsedId))
             {
                 var target = productService.FindProduct(parsedId);
-                if (target == null) return;
+                if (target == null)
+                {
+                    Console.WriteLine("Product not found.");
+                    return;
+                }
 
                 Console.Write($"New Name ({target.Name}): ");
-                target.Name = Console.ReadLine() ?? target.Name;
+                string newName = Console.ReadLine()?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(newName)) target.Name = newName;
 
                 Console.Write($"Change Stocks Level ({target.Stock}): ");
-                target.Stock = int.Parse(Console.ReadLine() ?? target.Stock.ToString());
+                string stockInput = Console.ReadLine()?.Trim() ?? "";
+                if (int.TryParse(stockInput, out int parsedStock))
+                {
+                    target.Stock = parsedStock;
+                }
 
                 productService.UpdateProduct(target);
                 Console.WriteLine("Changes successfully applied across persistence mechanisms.");
+            }
+            else
+            {
+                Console.WriteLine("Invalid GUID format.");
             }
         }
 
@@ -225,6 +282,14 @@ namespace Agullto_IMS
                 {
                     Console.WriteLine("Item safely deleted out of tracking matrices.");
                 }
+                else
+                {
+                    Console.WriteLine("Failed to delete product or record does not exist.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid GUID format.");
             }
         }
 
@@ -234,14 +299,14 @@ namespace Agullto_IMS
             Console.WriteLine("=== SECURITY SESSIONS LOG ===");
             foreach (var log in accessLogs)
             {
-                Console.WriteLine($"[{log.Timestamp}] User: {log.Username} | Role Context: {log.Role} -> Authorized: {log.Status}");
+                Console.WriteLine($"[{log.Timestamp:yyyy-MM-dd HH:mm:ss}] User: {log.Username} | Role Context: {log.Role} -> Authorized: {log.Status}");
             }
         }
 
         static void CheckLowStockAlerts()
         {
             var lowStock = productService.GetLowStockItems();
-            if (lowStock.Count > 0)
+            if (lowStock != null && lowStock.Count > 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("\n⚠️  CRITICAL ALERT: LOW STOCK ITEMS DETECTED (< 5)");
@@ -251,6 +316,47 @@ namespace Agullto_IMS
                 }
                 Console.ResetColor();
             }
+        }
+
+        // --- Validation Input Helpers ---
+
+        static int ReadIntInput(string prompt)
+        {
+            int result;
+            Console.Write(prompt);
+            while (!int.TryParse(Console.ReadLine(), out result))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Invalid integer value. Re-enter: ");
+                Console.ResetColor();
+            }
+            return result;
+        }
+
+        static decimal ReadDecimalInput(string prompt)
+        {
+            decimal result;
+            Console.Write(prompt);
+            while (!decimal.TryParse(Console.ReadLine(), NumberStyles.Any, CultureInfo.InvariantCulture, out result))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Invalid decimal value. Re-enter: ");
+                Console.ResetColor();
+            }
+            return result;
+        }
+
+        static double ReadDoubleInput(string prompt)
+        {
+            double result;
+            Console.Write(prompt);
+            while (!double.TryParse(Console.ReadLine(), NumberStyles.Any, CultureInfo.InvariantCulture, out result))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("Invalid double/numeric value. Re-enter: ");
+                Console.ResetColor();
+            }
+            return result;
         }
     }
 }
